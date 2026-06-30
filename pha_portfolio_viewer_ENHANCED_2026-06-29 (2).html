@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHA Portfolio Viewer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f0f4f8;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --text1: #0f172a;
+    --text2: #475569;
+    --text3: #94a3b8;
+    --blue: #2563eb;
+    --green: #16a34a;
+    --amber: #d97706;
+    --red: #dc2626;
+    --radius: 10px;
+    --shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.05);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text1);
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-logo {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--blue);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 14px;
+  }
+  .header-title { font-weight: 700; font-size: 15px; }
+  .header-sub { font-size: 12px; color: var(--text2); }
+  .header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .badge-save {
+    font-size: 11px; color: var(--green);
+    background: #f0fdf4; border: 1px solid #bbf7d0;
+    border-radius: 20px; padding: 3px 10px;
+  }
+
+  /* ── Layout ── */
+  .main { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
+  .section-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .section-sub { font-size: 12px; color: var(--text2); margin-bottom: 16px; }
+
+  /* ── Card ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+
+  /* ── Drop zone ── */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    background: #fafbfc;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--blue);
+    background: #eff6ff;
+  }
+  .drop-icon { font-size: 32px; color: var(--text3); margin-bottom: 8px; }
+  .drop-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .drop-sub { font-size: 12px; color: var(--text2); }
+  .format-pills {
+    display: flex; gap: 6px; justify-content: center; margin-top: 12px; flex-wrap: wrap;
+  }
+  .pill {
+    font-size: 11px; font-weight: 600; padding: 3px 10px;
+    border-radius: 20px;
+  }
+  .pill-green { background: #f0fdf4; color: var(--green); border: 1px solid #bbf7d0; }
+  .pill-blue  { background: #eff6ff; color: var(--blue);  border: 1px solid #bfdbfe; }
+  .pill-purple{ background: #faf5ff; color: #7c3aed;       border: 1px solid #ddd6fe; }
+
+  /* ── Imported project list ── */
+  .project-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .proj-chip {
+    display: flex; align-items: center; gap: 6px;
+    border-radius: 20px; padding: 5px 12px 5px 10px;
+    font-size: 12px; font-weight: 500;
+    border: 1px solid;
+  }
+  .proj-chip-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .proj-chip-remove {
+    cursor: pointer; color: inherit; opacity: .5; font-size: 14px;
+    background: none; border: none; padding: 0; line-height: 1;
+  }
+  .proj-chip-remove:hover { opacity: 1; }
+
+  /* ── Score cards ── */
+  .score-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .score-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px; position: relative; overflow: hidden;
+  }
+  .score-card-bar {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  }
+  .score-card-name { font-weight: 600; font-size: 13px; margin-bottom: 2px; padding-left: 10px; }
+  .score-card-id { font-size: 11px; color: var(--text2); margin-bottom: 10px; padding-left: 10px; }
+  .score-card-num {
+    font-size: 36px; font-weight: 800; line-height: 1;
+    padding-left: 10px; margin-bottom: 4px;
+  }
+  .score-card-label { font-size: 11px; color: var(--text2); padding-left: 10px; margin-bottom: 8px; }
+  .status-badge {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 20px; margin-left: 10px;
+  }
+  .score-bar-track {
+    height: 4px; background: var(--border); border-radius: 4px; margin: 6px 10px 0;
+  }
+  .score-bar-fill { height: 100%; border-radius: 4px; transition: width .5s; }
+
+  /* ── Charts grid ── */
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media(max-width:700px){ .charts-grid { grid-template-columns: 1fr; } }
+  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .chart-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+
+  /* ── Heatmap ── */
+  .heatmap-wrap { overflow-x: auto; }
+  table.heatmap { border-collapse: collapse; width: 100%; min-width: 500px; }
+  table.heatmap th {
+    font-size: 11px; font-weight: 600; color: var(--text2);
+    padding: 6px 10px; text-align: left; background: #f8fafc;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  table.heatmap td {
+    padding: 5px 10px; font-size: 12px; border-bottom: 1px solid #f1f5f9;
+  }
+  table.heatmap tr:last-child td { border-bottom: none; }
+  .hm-score {
+    display: inline-block; min-width: 42px; padding: 2px 6px;
+    border-radius: 4px; text-align: center; font-weight: 600; font-size: 11px;
+  }
+
+  /* ── Executive table ── */
+  .exec-table-wrap { overflow-x: auto; }
+  table.exec-table { border-collapse: collapse; width: 100%; min-width: 700px; }
+  table.exec-table th {
+    font-size: 11px; font-weight: 600; color: var(--text2);
+    padding: 8px 12px; text-align: left; background: #f8fafc;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  table.exec-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  table.exec-table tr.exec-row { cursor: pointer; }
+  table.exec-table tr.exec-row:hover td { background: #f8fafc; }
+  table.exec-table tr.drill-row td { background: #f8fafc; padding: 0; }
+  .drill-inner { padding: 12px 14px; display: none; }
+  .drill-inner.open { display: block; }
+  .drill-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 8px; }
+  .drill-item { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
+  .drill-area { font-size: 10px; font-weight: 600; color: var(--text2); margin-bottom: 4px; }
+  .drill-score { font-size: 18px; font-weight: 800; }
+
+  /* ── Empty state ── */
+  #port-content { display: none; }
+  .empty-hint { text-align: center; padding: 40px 20px; color: var(--text3); font-size: 13px; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    border: none; cursor: pointer; transition: opacity .15s;
+  }
+  .btn:hover { opacity: .85; }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-sm { padding: 5px 10px; font-size: 11px; }
+
+  /* ── Tag colors ── */
+  .tag { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; }
+  .tag-red    { background: #fef2f2; color: var(--red); }
+  .tag-amber  { background: #fffbeb; color: var(--amber); }
+  .tag-green  { background: #f0fdf4; color: var(--green); }
+  .tag-blue   { background: #eff6ff; color: var(--blue); }
+
+  /* ── Print ── */
+  @media print {
+    .header, .card.import-card, .charts-grid, #port-cards { display: none !important; }
+    .card { box-shadow: none; border: 1px solid #ddd; }
+    body { background: #fff; }
+  }
+
+  .tab-nav { display:flex; gap:0; border-bottom:2px solid var(--line,#e2e8f0); margin:24px 0 0 0; }
+  .tab-btn { background:none; border:none; padding:12px 22px; font-size:14px; font-weight:600; color:var(--text2,#64748b); cursor:pointer; border-bottom:3px solid transparent; font-family:inherit; }
+  .tab-btn:hover { color:var(--text,#1e293b); }
+  .tab-btn.active { color:#2563eb; border-bottom-color:#2563eb; }
+  .tab-pane { display:none; }
+  .tab-pane.active { display:block; padding-top:20px; }
+  .area-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(330px, 1fr)); gap:16px; margin-top:8px; }
+  .area-card { background:var(--card,#fff); border:1px solid var(--line,#e2e8f0); border-radius:10px; padding:16px; }
+  .area-card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px; }
+  .area-card-name { font-weight:700; font-size:13px; color:var(--text,#1e293b); }
+  .area-pill { font-size:12px; font-weight:700; color:#fff; padding:3px 11px; border-radius:20px; white-space:nowrap; }
+  .comment-block { margin-top:10px; }
+  .comment-head { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; margin-bottom:5px; }
+  .comment-item { font-size:12px; color:var(--text2,#475569); margin:5px 0; padding:8px 10px; border-radius:6px; line-height:1.45; }
+  .comment-good { background:#f0fdf4; border-left:3px solid #16a34a; }
+  .comment-bad { background:#fef2f2; border-left:3px solid #dc2626; }
+</style>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">PHA</div>
+  <div>
+    <div class="header-title">Project Health Audit</div>
+    <div class="header-sub">Portfolio &amp; Executive View</div>
+  </div>
+  <div class="header-right">
+    <span class="badge-save" id="save-badge" style="display:none">✓ Auto-saved</span>
+    <button class="btn btn-ghost btn-sm" id="btn-clear" onclick="clearAll()" style="display:none">Clear all</button>
+    <button class="btn btn-primary btn-sm" id="btn-print" onclick="window.print()" style="display:none">🖨 Print summary</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="section-title">Portfolio view</div>
+  <div class="section-sub">Import audit reports from multiple projects — CSV or Excel. Compare scores, spot focus areas, and generate VP/President-level executive summaries.</div>
+
+  <!-- Import card -->
+  <div class="card import-card">
+    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px">📂 Import audit reports</div>
+    <div class="drop-zone" id="drop-zone"
+         onclick="document.getElementById('file-input').click()"
+         ondragover="event.preventDefault();this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="handleDrop(event)">
+      <div class="drop-icon">☁</div>
+      <div class="drop-title">Click to select or drag files here</div>
+      <div class="drop-sub">One file per project — import multiple at once</div>
+      <div class="format-pills">
+        <span class="pill pill-green">.xlsx</span>
+        <span class="pill pill-green">.xls</span>
+        <span class="pill pill-blue">.csv</span>
+        <span class="pill pill-purple">Any Excel format</span>
+      </div>
+    </div>
+    <input type="file" id="file-input" accept=".csv,.xlsx,.xls,.xlsm,.xlsb" multiple style="display:none" onchange="handleFiles(this.files)">
+    <div class="project-list" id="project-list"></div>
+  </div>
+
+  <!-- TAB NAVIGATION -->
+  <div class="tab-nav" id="tab-nav" style="display:none">
+    <button class="tab-btn active" data-tab="portfolio" onclick="switchTab(event,'portfolio')">📊 Portfolio</button>
+    <button class="tab-btn" data-tab="insights" onclick="switchTab(event,'insights')">📋 All Areas</button>
+    <button class="tab-btn" data-tab="sankey" onclick="switchTab(event,'sankey')">🌊 Sankey</button>
+  </div>
+
+  <!-- PORTFOLIO PANE -->
+  <div id="portfolio-pane" class="tab-pane active">
+  <div id="port-content">
+
+    <!-- Score cards -->
+    <div class="score-cards" id="score-cards"></div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Dimension scores — all projects</div>
+        <div style="position:relative;height:270px"><canvas id="radarChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">PHA score comparison</div>
+        <div style="position:relative;height:240px"><canvas id="barChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Heatmap -->
+    <div class="card">
+      <div class="chart-title">Area scores heatmap — all projects</div>
+      <div class="heatmap-wrap" id="heatmap-wrap"></div>
+    </div>
+
+    <!-- Executive summary -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="chart-title" style="margin:0">Executive summary — all audited projects</div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleAllDrills()">Expand all</button>
+      </div>
+      <div class="exec-table-wrap">
+        <table class="exec-table" id="exec-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Project</th>
+              <th>Phase</th>
+              <th>PHA Score</th>
+              <th>Status</th>
+              <th>Strengths</th>
+              <th>Focus Areas</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="exec-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /port-content -->
+  </div><!-- /portfolio-pane -->
+
+  <!-- INSIGHTS PANE -->
+  <div id="insights-pane" class="tab-pane">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:20px">
+        <div class="chart-title" style="margin:0">All Areas — Strengths &amp; Issues (auditor comments)</div>
+        <select id="project-filter" onchange="filterProjectAreas(this.value)" style="padding:9px 12px;border:1px solid var(--line,#cbd5e1);border-radius:6px;font-family:inherit;font-size:13px;min-width:280px">
+          <option value="">All Projects</option>
+        </select>
+      </div>
+      <div id="all-areas-grid" class="area-grid"></div>
+    </div>
+  </div>
+
+  <!-- SANKEY PANE -->
+  <div id="sankey-pane" class="tab-pane">
+    <div class="card">
+      <div class="chart-title">Project Score Flow — by dimension</div>
+      <div style="margin:10px 0">
+        <select id="project-select" onchange="renderProjectSankey(this.value)" style="padding:9px 12px;border:1px solid var(--line,#cbd5e1);border-radius:6px;font-family:inherit;font-size:13px;min-width:280px">
+          <option value="">Select a project…</option>
+        </select>
+      </div>
+      <div id="sankey-container" style="width:100%;min-height:480px"></div>
+    </div>
+  </div>
+</div><!-- /main -->
+
+<script>
+// ═══════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════
+const COLORS = [
+  {b:'#2563eb',bg:'rgba(37,99,235,.15)',text:'#1d4ed8'},
+  {b:'#16a34a',bg:'rgba(22,163,74,.15)',text:'#15803d'},
+  {b:'#7c3aed',bg:'rgba(124,58,237,.15)',text:'#6d28d9'},
+  {b:'#d97706',bg:'rgba(217,119,6,.15)',text:'#b45309'},
+  {b:'#0891b2',bg:'rgba(8,145,178,.15)',text:'#0e7490'},
+  {b:'#db2777',bg:'rgba(219,39,119,.15)',text:'#be185d'},
+  {b:'#059669',bg:'rgba(5,150,105,.15)',text:'#047857'},
+  {b:'#9333ea',bg:'rgba(147,51,234,.15)',text:'#7e22ce'},
+];
+
+const DIM_MAP = {
+  'Project Management Practices': 'Proj Mgmt',
+  'Agile Development Practices':  'Agile Dev',
+  'Engineering Practices':        'Engineering',
+  'Devops Practices':             'DevOps',
+  'System Security Control Practices': 'Security',
+};
+
+let projects = [];
+let radarChart = null, barChart = null;
+let drillState = {};
+
+// ═══════════════════════════════════════════════
+// FILE HANDLING — supports CSV + Excel (xlsx/xls)
+// ═══════════════════════════════════════════════
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+}
+
+function handleFiles(fileList) {
+  Array.from(fileList).forEach(file => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (['xlsx','xls','xlsm','xlsb'].includes(ext)) {
+      readExcel(file);
+    } else if (ext === 'csv') {
+      readCSV(file);
+    } else {
+      alert(`Unsupported file: ${file.name}\nSupported: .xlsx, .xls, .csv`);
+    }
+  });
+}
+
+function readExcel(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellStyles: false, cellFormula: false });
+      // Find the assessment sheet
+      let sheetName = wb.SheetNames.find(n => n.toLowerCase().includes('assessment') || n.toLowerCase().includes('response')) || wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      const project = parseRowsToProject(rows, file.name);
+      if (project) addProject(project);
+    } catch(err) {
+      alert(`Could not read Excel file: ${file.name}\n${err.message}`);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function readCSV(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = parseCSVToRows(e.target.result);
+    const project = parseRowsToProject(rows, file.name);
+    if (project) addProject(project);
+  };
+  reader.readAsText(file);
+}
+
+function parseCSVToRows(text) {
+  return text.split(/\r?\n/).map(line => {
+    const cells = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      if (line[i] === '"') { if (inQ && line[i+1]==='"'){cur+='"';i++;} else inQ=!inQ; }
+      else if (line[i]===',' && !inQ) { cells.push(cur.trim()); cur=''; }
+      else cur += line[i];
+    }
+    cells.push(cur.trim());
+    return cells;
+  });
+}
+
+// ═══════════════════════════════════════════════
+// PARSE: rows → project object
+// Works for both Excel rows and CSV rows
+// ═══════════════════════════════════════════════
+function parseRowsToProject(rows, filename) {
+  // Find header row (has U_ID or u_id)
+  let headerIdx = rows.findIndex(r => r.some(c => String(c).toUpperCase() === 'U_ID'));
+  
+  // Try to extract project name from filename if not in header metadata
+  let projectName = filename.replace(/\.(xlsx|xls|xlsm|csv)$/i,'').replace(/_/g,' ');
+  let projectId = '', phase = 'Execute phase', auditor = '', auditee = '', date = '';
+
+  // Look for metadata rows above header
+  if (headerIdx > 0) {
+    for (let i = 0; i < headerIdx; i++) {
+      const r = rows[i];
+      const key = String(r[0]||'').toLowerCase();
+      if (key.includes('project name'))  projectName = String(r[1]||'') || projectName;
+      if (key.includes('project id'))    projectId   = String(r[1]||'');
+      if (key.includes('phase'))         phase       = String(r[1]||'') || phase;
+      if (key.includes('auditor'))       auditor     = String(r[1]||'');
+      if (key.includes('auditee') || key.includes('auditee')) auditee = String(r[1]||'');
+      if (key.includes('audit date') || key.includes('date')) date    = String(r[1]||'');
+    }
+  }
+
+  if (headerIdx === -1) {
+    // Maybe there's no metadata, just check if row 0 IS the header
+    if (rows[0] && rows[0].some(c => String(c).toUpperCase() === 'U_ID')) {
+      headerIdx = 0;
+    } else {
+      alert(`Could not find question data in: ${filename}`);
+      return null;
+    }
+  }
+
+  const header = rows[headerIdx].map(c => String(c).trim().toUpperCase());
+  const colIdx = {
+    uid:        header.indexOf('U_ID'),
+    dim:        header.findIndex(h => h.includes('DIMENSION') && !h.includes('SUB')),
+    subDim:     header.findIndex(h => h.includes('SUB')),
+    area:       header.findIndex(h => h === 'AREA'),
+    question:   header.findIndex(h => h.includes('QUESTION') || h.includes('DESCRIPTION')),
+    response:   header.findIndex(h => h === 'RESPONSE'),
+    coreResp:   header.findIndex(h => h.includes('CORE TEAM RESPONSE') || h.includes('CORE TEAM R')),
+    coreComments: header.findIndex(h => h.includes('CORE TEAM COMMENTS') || h.includes('CORE TEAM C')),
+    score:      header.findIndex(h => h === 'SCORE'),
+  };
+
+  const areaScores = {}; // area -> { sum, count }
+  const dimScores  = {}; // dim  -> { sum, count }
+
+  let totalAchieved = 0, validAreas = 0;
+
+  // Data rows
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.every(c => c === '')) continue;
+
+    // Check for footer rows (Total Achieved Score etc.)
+    const c0 = String(r[0]||'');
+    if (c0.includes('Total Achieved')) { totalAchieved = parseFloat(r[1])||0; continue; }
+    if (c0.includes('Total Valid'))    { validAreas    = parseInt(r[1])||0;   continue; }
+    if (c0.includes('PHA Final'))      { /* ignore — we recalc */              continue; }
+
+    const uid = String(r[colIdx.uid]||'');
+    if (!uid.includes('U_ID') && !uid.match(/^u_id/i)) continue;
+
+    const area    = String(r[colIdx.area]    ||'').trim().toUpperCase() || 'UNKNOWN';
+    const dim     = String(r[colIdx.dim]     ||'').trim();
+    const score   = parseFloat(r[colIdx.score]) || 0;
+    const resp    = String(r[colIdx.response]||'').trim().toUpperCase();
+    const coreR   = String(r[colIdx.coreResp]||'').trim().toUpperCase();
+
+    // Only count answered questions (not N/A or empty)
+    const isAnswered = coreR === 'YES' || coreR === 'NO';
+    if (!isAnswered) continue;
+
+    if (!areaScores[area])  areaScores[area]  = { sum: 0, count: 0, dim };
+    if (!dimScores[dim])    dimScores[dim]    = { sum: 0, count: 0 };
+
+    areaScores[area].sum   += score;
+    areaScores[area].count += 1;
+    dimScores[dim].sum     += score;
+    dimScores[dim].count   += 1;
+    totalAchieved          += score;
+  }
+
+  // Valid areas = areas with >=1 answered (YES/NO) question
+  validAreas = Object.keys(areaScores).length;
+
+  // Normalise area scores to /10 (scores are already normalised per area in the Excel)
+  // Actually the Score column already gives the weight. Sum per area ≤ 10.
+  // Compute per-area totals and per-dimension averages
+  const areaFinal = {};
+  for (const [area, v] of Object.entries(areaScores)) {
+    areaFinal[area] = Math.min(10, v.sum); // sum of weighted scores
+  }
+
+  // Dimension average = avg of area scores within that dimension
+  const dimFinal = {};
+  for (const [area, v] of Object.entries(areaScores)) {
+    const d = v.dim;
+    if (!dimFinal[d]) dimFinal[d] = { sum: 0, count: 0 };
+    dimFinal[d].sum   += areaFinal[area];
+    dimFinal[d].count += 1;
+  }
+  const dimAvg = {};
+  const dimMax = {};
+  for (const [d, v] of Object.entries(dimFinal)) {
+    dimAvg[d] = v.count ? +(v.sum / v.count).toFixed(2) : 0;
+    dimMax[d] = v.count * 10; // max if all areas scored 10
+  }
+
+  // PHA = Total Achieved Score / Total Valid Areas (matches Excel exactly)
+  const phaScore = validAreas > 0 ? +(totalAchieved / validAreas).toFixed(2) : 0;
+
+  // Auditor comments per area (with project attribution)
+  const areaComments = {};
+  for (const a of Object.keys(areaScores)) areaComments[a] = { good: [], bad: [] };
+  for (let ci = headerIdx + 1; ci < rows.length; ci++) {
+    const cr = rows[ci];
+    if (!cr || cr.every(c => c === '')) continue;
+    const cuid = String(cr[colIdx.uid]||'');
+    if (!cuid.includes('U_ID') && !cuid.match(/^u_id/i)) continue;
+    const carea = String(cr[colIdx.area]||'').trim().toUpperCase() || 'UNKNOWN';
+    const ccoreR = String(cr[colIdx.coreResp]||'').trim().toUpperCase();
+    const ccomm = String(cr[colIdx.coreComments]||'').trim();
+    if ((ccoreR !== 'YES' && ccoreR !== 'NO') || !ccomm) continue;
+    if (!areaComments[carea]) areaComments[carea] = { good: [], bad: [] };
+    const tgt = ccoreR === 'YES' ? areaComments[carea].good : areaComments[carea].bad;
+    // Store as {text, project} to track source
+    const entry = { text: ccomm, project: projectName || filename };
+    if (!tgt.find(e => (e.text || e) === ccomm)) tgt.push(entry);
+  }
+
+  return { name: projectName || filename, areaComments, dimScores, dimMax, id: projectId, phase, auditor, auditee, date, filename,
+           phaScore, areas: areaFinal, dims: dimAvg };
+}
+
+// ═══════════════════════════════════════════════
+// PROJECT MANAGEMENT
+// ═══════════════════════════════════════════════
+function addProject(p) {
+  // Avoid duplicates by filename
+  if (projects.find(x => x.filename === p.filename)) return;
+  p.colorIdx = projects.length % COLORS.length;
+  projects.push(p);
+  saveState();
+  renderAll();
+}
+
+function removeProject(filename) {
+  projects = projects.filter(p => p.filename !== filename);
+  saveState();
+  renderAll();
+}
+
+function clearAll() {
+  if (!confirm('Remove all imported projects?')) return;
+  projects = [];
+  drillState = {};
+  saveState();
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════
+// RENDER ALL
+// ═══════════════════════════════════════════════
+function renderAll() {
+  renderChips();
+  if (!projects.length) {
+    document.getElementById('port-content').style.display = 'none';
+    document.getElementById('btn-print').style.display = 'none';
+    document.getElementById('btn-clear').style.display = 'none';
+    return;
+  }
+  document.getElementById('port-content').style.display = 'block';
+  document.getElementById('btn-print').style.display = '';
+  document.getElementById('btn-clear').style.display = '';
+  renderScoreCards();
+  renderCharts();
+  renderHeatmap();
+  renderExecTable();
+}
+
+function renderChips() {
+  const el = document.getElementById('project-list');
+  el.innerHTML = projects.map(p => {
+    const c = COLORS[p.colorIdx];
+    return `<span class="proj-chip" style="background:${c.bg};color:${c.text};border-color:${c.b}40">
+      <span class="proj-chip-dot" style="background:${c.b}"></span>
+      ${esc(p.name || p.filename)}
+      <button class="proj-chip-remove" onclick="removeProject('${esc(p.filename)}')" title="Remove">×</button>
+    </span>`;
+  }).join('');
+}
+
+function renderScoreCards() {
+  const el = document.getElementById('score-cards');
+  el.innerHTML = projects.map(p => {
+    const c = COLORS[p.colorIdx];
+    const s = p.phaScore;
+    const { label, cls } = statusFor(s);
+    const pct = (s / 10 * 100).toFixed(1);
+    return `<div class="score-card">
+      <div class="score-card-bar" style="background:${c.b}"></div>
+      <div class="score-card-name">${esc(p.name)}</div>
+      <div class="score-card-id">${esc(p.id || p.phase || '')}</div>
+      <div class="score-card-num" style="color:${c.b}">${s.toFixed(1)}</div>
+      <div class="score-card-label">out of 10</div>
+      <span class="status-badge ${cls}">${label}</span>
+      <div class="score-bar-track">
+        <div class="score-bar-fill" style="width:${pct}%;background:${c.b}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function statusFor(s) {
+  if (s >= 9)   return { label: 'Excellent',      cls: 'tag tag-green' };
+  if (s >= 7.5) return { label: 'Good',           cls: 'tag tag-blue' };
+  if (s >= 6)   return { label: 'Satisfactory',   cls: 'tag tag-blue' };
+  if (s >= 4)   return { label: 'Needs Attention',cls: 'tag tag-amber' };
+  return              { label: 'Critical',        cls: 'tag tag-red' };
+}
+
+function renderCharts() {
+  // ── Radar ──
+  const allDims = [...new Set(projects.flatMap(p => Object.keys(p.dims)))];
+  const radarLabels = allDims.map(d => DIM_MAP[d] || d);
+
+  const radarDatasets = projects.map(p => {
+    const c = COLORS[p.colorIdx];
+    return {
+      label: p.name,
+      data: allDims.map(d => p.dims[d] || 0),
+      borderColor: c.b, backgroundColor: c.bg, borderWidth: 2, pointRadius: 3,
+    };
+  });
+
+  if (radarChart) radarChart.destroy();
+  const rCtx = document.getElementById('radarChart').getContext('2d');
+  radarChart = new Chart(rCtx, {
+    type: 'radar',
+    data: { labels: radarLabels, datasets: radarDatasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { r: { min: 0, max: 10, ticks: { stepSize: 2, font: { size: 10 } }, pointLabels: { font: { size: 10 } } } },
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } },
+    }
+  });
+
+  // ── Bar ──
+  if (barChart) barChart.destroy();
+  const bCtx = document.getElementById('barChart').getContext('2d');
+  barChart = new Chart(bCtx, {
+    type: 'bar',
+    data: {
+      labels: projects.map(p => p.name.length > 16 ? p.name.slice(0,14)+'…' : p.name),
+      datasets: [{
+        label: 'PHA Score',
+        data: projects.map(p => p.phaScore),
+        backgroundColor: projects.map(p => COLORS[p.colorIdx].b),
+        borderRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      scales: { x: { min: 0, max: 10, ticks: { font: { size: 10 } } }, y: { ticks: { font: { size: 10 } } } },
+      plugins: { legend: { display: false }, datalabels: false },
+    }
+  });
+}
+
+function renderHeatmap() {
+  const allAreas = [...new Set(projects.flatMap(p => Object.keys(p.areas)))].sort();
+  const el = document.getElementById('heatmap-wrap');
+
+  let html = `<table class="heatmap"><thead><tr>
+    <th>Area</th>
+    ${projects.map(p=>`<th style="min-width:80px">${esc(p.name.length>14?p.name.slice(0,12)+'…':p.name)}</th>`).join('')}
+    <th>Avg</th>
+  </tr></thead><tbody>`;
+
+  for (const area of allAreas) {
+    const scores = projects.map(p => p.areas[area] ?? null);
+    const valid  = scores.filter(s => s !== null);
+    const avg    = valid.length ? +(valid.reduce((a,b)=>a+b,0)/valid.length).toFixed(1) : null;
+    html += `<tr><td style="font-weight:500;font-size:11px;white-space:nowrap">${esc(area)}</td>`;
+    for (const s of scores) {
+      html += `<td>${s !== null ? hmCell(s) : '<span style="color:#cbd5e1;font-size:10px">–</span>'}</td>`;
+    }
+    html += `<td>${avg !== null ? hmCell(avg) : '–'}</td></tr>`;
+  }
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function hmCell(s) {
+  let bg, color;
+  if (s >= 9)        { bg='#dcfce7'; color='#15803d'; }
+  else if (s >= 7.5) { bg='#d1fae5'; color='#047857'; }
+  else if (s >= 6)   { bg='#fef9c3'; color='#854d0e'; }
+  else if (s >= 4)   { bg='#fef3c7'; color='#b45309'; }
+  else if (s > 0)    { bg='#fee2e2'; color='#b91c1c'; }
+  else               { bg='#f1f5f9'; color='#94a3b8'; }
+  return `<span class="hm-score" style="background:${bg};color:${color}">${s.toFixed(1)}</span>`;
+}
+
+function renderExecTable() {
+  const tbody = document.getElementById('exec-tbody');
+  tbody.innerHTML = projects.map((p, idx) => {
+    const c = COLORS[p.colorIdx];
+    const { label, cls } = statusFor(p.phaScore);
+    const areas = Object.entries(p.areas).filter(([,s])=>s>0);
+    const sorted = [...areas].sort(([,a],[,b])=>b-a);
+    const strengths = sorted.filter(([,s])=>s>=7.5).slice(0,3).map(([a])=>a).join(', ') || '—';
+    const focus     = sorted.reverse().filter(([,s])=>s<7).slice(0,3).map(([a])=>a).join(', ') || '—';
+
+    // Drill-down area grid
+    const drillAreas = Object.entries(p.areas)
+      .filter(([,s])=>s>0)
+      .sort(([,a],[,b])=>b-a)
+      .map(([area,score]) => `<div class="drill-item">
+        <div class="drill-area">${esc(area)}</div>
+        <div class="drill-score" style="color:${scoreColor(score)}">${score.toFixed(1)}</div>
+      </div>`).join('');
+
+    return `
+    <tr class="exec-row" onclick="toggleDrill(${idx})">
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c.b}"></span></td>
+      <td><div style="font-weight:600">${esc(p.name)}</div><div style="font-size:11px;color:var(--text2)">${esc(p.id||'')}</div></td>
+      <td style="font-size:11px;color:var(--text2)">${esc(p.phase)}</td>
+      <td><span style="font-size:22px;font-weight:800;color:${c.b}">${p.phaScore.toFixed(1)}</span><span style="font-size:10px;color:var(--text2)">/10</span></td>
+      <td><span class="tag ${cls}">${label}</span></td>
+      <td style="font-size:11px;color:var(--green);max-width:200px">${esc(strengths)}</td>
+      <td style="font-size:11px;color:var(--red);max-width:200px">${esc(focus)}</td>
+      <td style="font-size:11px;color:var(--text2)">${esc(p.date||'—')}</td>
+    </tr>
+    <tr class="drill-row">
+      <td colspan="8">
+        <div class="drill-inner ${drillState[idx]?'open':''}" id="drill-${idx}">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px">Area-by-area breakdown</div>
+          <div class="drill-grid">${drillAreas}</div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function scoreColor(s) {
+  if (s >= 9)   return '#15803d';
+  if (s >= 7.5) return '#047857';
+  if (s >= 6)   return '#b45309';
+  if (s >= 4)   return '#d97706';
+  return '#b91c1c';
+}
+
+function toggleDrill(idx) {
+  drillState[idx] = !drillState[idx];
+  const el = document.getElementById(`drill-${idx}`);
+  if (el) el.classList.toggle('open', drillState[idx]);
+}
+
+let allOpen = false;
+function toggleAllDrills() {
+  allOpen = !allOpen;
+  projects.forEach((_, i) => {
+    drillState[i] = allOpen;
+    const el = document.getElementById(`drill-${i}`);
+    if (el) el.classList.toggle('open', allOpen);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// PERSISTENCE
+// ═══════════════════════════════════════════════
+function saveState() {
+  try {
+    localStorage.setItem('pha_portfolio', JSON.stringify(projects));
+    const badge = document.getElementById('save-badge');
+    badge.style.display = '';
+    setTimeout(()=> badge.style.display='none', 2000);
+  } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem('pha_portfolio');
+    if (saved) { projects = JSON.parse(saved); renderAll(); }
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════
+// INIT — load saved state, then also auto-load
+// the two sample uploads if present
+// ═══════════════════════════════════════════════
+loadState();
+
+
+// ═══════════════════════════════════════════════
+// TABS + ENHANCED VIEWS (All Areas, Sankey)
+// ═══════════════════════════════════════════════
+function switchTab(e, tab) {
+  document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  var pane = document.getElementById(tab + '-pane');
+  if (pane) pane.classList.add('active');
+  if (e && e.target) {
+    e.target.classList.add('active');
+  } else {
+    var btn = document.querySelector('.tab-btn[data-tab="' + tab + '"]');
+    if (btn) btn.classList.add('active');
+  }
+  if (tab === 'insights') updateAllAreasInsights();
+  if (tab === 'sankey') {
+    var sel = document.getElementById('project-select');
+    if (sel && sel.value !== '') renderProjectSankey(sel.value);
+  }
+}
+
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+var g_allAreas = {}; // cached all areas
+var g_projectAreas = {}; // cached per-project areas: { projName: { area: {...}, ...}}
+function updateAllAreasInsights() {
+  var grid = document.getElementById('all-areas-grid');
+  if (!grid) return;
+  if (!projects || projects.length === 0) {
+    grid.innerHTML = '<p style="color:#999;text-align:center;padding:40px">Import audit reports to see all areas.</p>';
+    return;
+  }
+  
+  // Build complete dataset (union) for "All Projects" view
+  g_allAreas = {};
+  g_projectAreas = {};
+  
+  projects.forEach(function(proj){
+    if (!proj.areaComments) return;
+    g_projectAreas[proj.name] = {};
+    
+    Object.keys(proj.areaComments).forEach(function(area){
+      var comms = proj.areaComments[area];
+      if (!g_allAreas[area]) g_allAreas[area] = { good: [], bad: [], score: 0, projName: proj.name };
+      if (proj.areas && typeof proj.areas[area] === 'number') g_allAreas[area].score = proj.areas[area];
+      
+      // Track per-project
+      g_projectAreas[proj.name][area] = { good: [], bad: [], score: proj.areas && proj.areas[area] ? proj.areas[area] : 0 };
+      
+      comms.good.forEach(function(c){
+        var entry = (c && c.text) ? c : {text:c, project:''};
+        if (!g_allAreas[area].good.find(function(x){return (x.text||x)===entry.text;})) g_allAreas[area].good.push(entry);
+        g_projectAreas[proj.name][area].good.push(entry);
+      });
+      comms.bad.forEach(function(c){
+        var entry = (c && c.text) ? c : {text:c, project:''};
+        if (!g_allAreas[area].bad.find(function(x){return (x.text||x)===entry.text;})) g_allAreas[area].bad.push(entry);
+        g_projectAreas[proj.name][area].bad.push(entry);
+      });
+    });
+  });
+  
+  filterProjectAreas(''); // render all
+  
+  // Populate filter dropdown
+  var sel = document.getElementById('project-filter');
+  if (sel) {
+    var cur = sel.value;
+    sel.innerHTML = '<option value="">All Projects</option>';
+    projects.forEach(function(p){
+      var o = document.createElement('option'); o.value = p.name;
+      o.textContent = p.name + ' (' + Object.keys(g_projectAreas[p.name]||{}).length + ' areas)';
+      sel.appendChild(o);
+    });
+    if (cur && projects.find(function(p){return p.name===cur;})) sel.value = cur;
+  }
+}
+
+function filterProjectAreas(projName) {
+  var grid = document.getElementById('all-areas-grid');
+  if (!grid) return;
+  
+  var filtered = projName ? (g_projectAreas[projName]||{}) : g_allAreas;
+  var keys = Object.keys(filtered).sort();
+  
+  if (!keys.length) { 
+    grid.innerHTML = '<p style="color:#999;text-align:center;padding:40px">No areas found for selected project.</p>'; 
+    return; 
+  }
+  
+  var out = '';
+  keys.forEach(function(area){
+    var d = filtered[area]; var sc = d.score || 0;
+    var pill = sc >= 7 ? '#16a34a' : (sc >= 4 ? '#f59e0b' : '#dc2626');
+    out += '<div class="area-card"><div class="area-card-head"><span class="area-card-name">' + area + '</span>';
+    out += '<span class="area-pill" style="background:' + pill + '">' + sc.toFixed(1) + '/10</span></div>';
+    if (d.good.length) {
+      out += '<div class="comment-block"><div class="comment-head" style="color:#16a34a">✓ Strengths (' + d.good.length + ')</div>';
+      d.good.forEach(function(c){
+        var txt = c.text || c; var proj = c.project || '';
+        var badge = proj ? '<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px">' + proj.substring(0,15) + '</span>' : '';
+        out += '<div class="comment-item comment-good">' + escapeHtml(txt) + badge + '</div>';
+      });
+      out += '</div>';
+    }
+    if (d.bad.length) {
+      out += '<div class="comment-block"><div class="comment-head" style="color:#dc2626">⚠ Issues / Focus (' + d.bad.length + ')</div>';
+      d.bad.forEach(function(c){
+        var txt = c.text || c; var proj = c.project || '';
+        var badge = proj ? '<span style="background:#fee2e2;color:#7f1d1d;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-left:6px">' + proj.substring(0,15) + '</span>' : '';
+        out += '<div class="comment-item comment-bad">' + escapeHtml(txt) + badge + '</div>';
+      });
+      out += '</div>';
+    }
+    if (!d.good.length && !d.bad.length) out += '<div style="font-size:12px;color:#94a3b8;margin-top:8px">No comments recorded.</div>';
+    out += '</div>';
+  });
+  grid.innerHTML = out;
+}
+
+function hexToRgba(hex, a){
+  var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return 'rgba('+r+','+g+','+b+','+a+')';
+}
+
+function renderProjectSankey(idx) {
+  var container = document.getElementById('sankey-container');
+  if (!container) return;
+  if (idx === '' || idx === null || idx === undefined) {
+    container.innerHTML = '<p style="text-align:center;color:#999;padding:120px 20px">Select a project to view its score flow.</p>';
+    return;
+  }
+  var proj = projects[idx];
+  if (!proj || !proj.dimScores) { container.innerHTML = '<p style="text-align:center;color:#999;padding:120px 20px">No dimension data.</p>'; return; }
+  var dims = Object.keys(proj.dimScores).map(function(name){
+    var v = proj.dimScores[name];
+    var sc = (v && v.sum !== undefined) ? v.sum : v;
+    var mx = (proj.dimMax && proj.dimMax[name]) || 50;
+    return { name: name.replace(/ Practices$/,''), score: parseFloat(sc) || 0, max: parseFloat(mx) || 50 };
+  }).filter(function(d){ return d.score > 0; }).sort(function(a,b){ return b.score - a.score; });
+  if (!dims.length) { container.innerHTML = '<p style="text-align:center;color:#999;padding:120px 20px">No scored dimensions.</p>'; return; }
+
+  var labels = [proj.name];
+  dims.forEach(function(d){ labels.push(d.name + ' (' + d.score.toFixed(1) + '/' + d.max + ')'); });
+  var palette = ['#2563eb','#0891b2','#16a34a','#f59e0b','#8b5cf6','#ec4899','#14b8a6'];
+  var darkPalette = ['#1e3a8a','#164e63','#15803d','#b45309','#5b21b6','#831843','#0d4f4f'];
+  var nodeColors = ['#1e293b']; var src=[],tgt=[],val=[],lc=[];
+  dims.forEach(function(d,i){
+    nodeColors.push(palette[i%palette.length]);
+    src.push(0); tgt.push(i+1);
+    val.push(d.score);
+    lc.push(hexToRgba(palette[i%palette.length],0.5));
+    // Add potential gap as darker shade
+    if (d.max > d.score) {
+      src.push(0); tgt.push(i+1);
+      val.push(d.max - d.score);
+      lc.push(hexToRgba(darkPalette[i%darkPalette.length],0.2));
+    }
+  });
+
+  var data = [{ type:'sankey', orientation:'h',
+    node:{ pad:18, thickness:22, line:{color:'#cbd5e1',width:0.5}, label:labels, color:nodeColors },
+    link:{ source:src, target:tgt, value:val, color:lc } }];
+  var layout = { title:{ text: proj.name + '  —  PHA ' + (proj.phaScore!==undefined?proj.phaScore.toFixed(2):'?') + '/10  (actual/potential)', font:{size:15,color:'#1e293b'} },
+    font:{family:'inherit',size:12,color:'#475569'}, paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)', margin:{l:10,r:10,t:50,b:10}, height:480 };
+  Plotly.newPlot(container, data, layout, { responsive:true, displayModeBar:false });
+}
+
+// Hook renderAll to reveal tabs + populate dropdown
+(function(){
+  var orig = window.renderAll || renderAll;
+  window.renderAll = function(){
+    orig.apply(this, arguments);
+    var nav = document.getElementById('tab-nav');
+    if (nav) nav.style.display = (projects && projects.length) ? 'flex' : 'none';
+    var sel = document.getElementById('project-select');
+    if (sel && projects && projects.length) {
+      var cur = sel.value;
+      sel.innerHTML = '<option value="">Select a project…</option>';
+      projects.forEach(function(p,i){
+        var o = document.createElement('option'); o.value = i;
+        o.textContent = p.name + ' (' + (p.phaScore!==undefined?p.phaScore.toFixed(2):'?') + '/10)';
+        sel.appendChild(o);
+      });
+      if (cur !== '' && projects[cur]) sel.value = cur;
+    }
+  };
+})();
+
+</script>
+</body>
+</html>
